@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Money Analytics</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            accent: '#6366f1',
+            success: '#22c55e',
+            danger: '#ef4444',
+            warn: '#f59e0b',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { background: #0f1117; color: #e2e8f0; font-family: 'Inter', system-ui, sans-serif; }
+    .tab-btn { transition: all 0.15s; }
+    .tab-btn.active { background: #6366f1; color: white; }
+    .card { background: #1a1d27; border: 1px solid #2d3148; border-radius: 12px; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; }
+    .badge-high { background: #16a34a22; color: #22c55e; border: 1px solid #22c55e44; }
+    .badge-medium { background: #d97706222; color: #f59e0b; border: 1px solid #f59e0b44; }
+    .badge-low { background: #64748b22; color: #94a3b8; border: 1px solid #64748b44; }
+    .signal-card { transition: transform 0.1s; }
+    .signal-card:hover { transform: translateY(-1px); }
+    .type-SMART_WALLET_BUY { border-left: 3px solid #6366f1; }
+    .type-COORDINATED_BUY { border-left: 3px solid #22c55e; }
+    .type-EARLY_ENTRY { border-left: 3px solid #06b6d4; }
+    .type-PRE_PUMP_PATTERN { border-left: 3px solid #f59e0b; }
+    .type-NEW_LIQUIDITY { border-left: 3px solid #3b82f6; }
+    .type-CLUSTER_BUY { border-left: 3px solid #8b5cf6; }
+    .type-SMART_EXIT { border-left: 3px solid #ef4444; }
+    .type-WHALE_MOVE { border-left: 3px solid #14b8a6; }
+    .score-bar { height: 4px; border-radius: 2px; background: #2d3148; }
+    .score-fill { height: 100%; border-radius: 2px; }
+    tr:hover td { background: #1e2236; }
+    thead th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; }
+    .spinner { border: 2px solid #2d3148; border-top-color: #6366f1; border-radius: 50%; width: 20px; height: 20px; animation: spin 0.7s linear infinite; display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: #0f1117; }
+    ::-webkit-scrollbar-thumb { background: #2d3148; border-radius: 4px; }
+  </style>
+</head>
+<body class="min-h-screen">
+
+<!-- Header -->
+<header class="border-b border-gray-800 px-6 py-4 flex items-center justify-between">
+  <div class="flex items-center gap-3">
+    <div class="w-8 h-8 rounded-lg bg-accent flex items-center justify-center text-white font-bold text-sm">S</div>
+    <div>
+      <h1 class="font-bold text-white text-lg leading-none">Smart Money Analytics</h1>
+      <p class="text-xs text-gray-500 mt-0.5">Multi-chain intelligence</p>
+    </div>
+  </div>
+  <div id="status-bar" class="flex items-center gap-4 text-sm">
+    <span class="text-gray-500">Loading...</span>
+  </div>
+</header>
+
+<!-- Tabs -->
+<nav class="border-b border-gray-800 px-6">
+  <div class="flex gap-1 py-2">
+    <button onclick="showTab('signals')" class="tab-btn active px-4 py-2 rounded-lg text-sm font-medium" id="tab-signals">📊 Signals</button>
+    <button onclick="showTab('wallets')" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white" id="tab-wallets">🧠 Wallets</button>
+    <button onclick="showTab('stats')" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white" id="tab-stats">📈 Stats</button>
+    <button onclick="showTab('backtest')" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white" id="tab-backtest">🔬 Backtest</button>
+  </div>
+</nav>
+
+<main class="p-6">
+
+<!-- SIGNALS TAB -->
+<div id="tab-content-signals">
+  <div class="flex items-center justify-between mb-4">
+    <div class="flex gap-2">
+      <select id="filter-type" onchange="loadSignals()" class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white">
+        <option value="">All Types</option>
+        <option>SMART_WALLET_BUY</option>
+        <option>COORDINATED_BUY</option>
+        <option>EARLY_ENTRY</option>
+        <option>PRE_PUMP_PATTERN</option>
+        <option>NEW_LIQUIDITY</option>
+        <option>CLUSTER_BUY</option>
+        <option>SMART_EXIT</option>
+        <option>WHALE_MOVE</option>
+      </select>
+      <select id="filter-chain" onchange="loadSignals()" class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white">
+        <option value="">All Chains</option>
+        <option>eth</option><option>bsc</option><option>polygon</option><option>base</option>
+      </select>
+      <select id="filter-score" onchange="loadSignals()" class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white">
+        <option value="0">All Scores</option>
+        <option value="50">Score ≥ 50</option>
+        <option value="70">Score ≥ 70</option>
+        <option value="85">Score ≥ 85</option>
+      </select>
+    </div>
+    <div class="flex items-center gap-3">
+      <span id="signals-count" class="text-gray-500 text-sm"></span>
+      <button onclick="loadSignals()" class="text-xs bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-300 hover:text-white">↻ Refresh</button>
+    </div>
+  </div>
+  <div id="signals-grid" class="grid gap-3 grid-cols-1 lg:grid-cols-2 xl:grid-cols-3"></div>
+  <div id="signals-loading" class="flex justify-center py-12"><div class="spinner"></div></div>
+</div>
+
+<!-- WALLETS TAB -->
+<div id="tab-content-wallets" class="hidden">
+  <div class="flex items-center justify-between mb-4">
+    <div class="flex gap-2">
+      <select id="wallet-chain" onchange="loadWallets()" class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white">
+        <option value="">All Chains</option>
+        <option>eth</option><option>bsc</option><option>polygon</option><option>base</option>
+      </select>
+      <input id="wallet-search" oninput="filterWallets()" placeholder="Search address or label..." 
+             class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white w-64" />
+    </div>
+    <button onclick="loadWallets()" class="text-xs bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-300 hover:text-white">↻ Refresh</button>
+  </div>
+  <!-- Label Editor Modal -->
+  <div id="label-modal" class="hidden fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
+    <div class="card p-6 w-96">
+      <h3 class="font-semibold text-white mb-4">Edit Wallet Label</h3>
+      <input id="modal-address" type="hidden" />
+      <input id="modal-chain" type="hidden" value="eth" />
+      <div class="mb-3">
+        <label class="text-xs text-gray-500 mb-1 block">Label</label>
+        <input id="modal-label" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm" placeholder="e.g. Jump Crypto" />
+      </div>
+      <div class="mb-4">
+        <label class="text-xs text-gray-500 mb-1 block">Tags (comma separated)</label>
+        <input id="modal-tags" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm" placeholder="vc, fund, whale" />
+      </div>
+      <div class="flex gap-2 justify-end">
+        <button onclick="closeModal()" class="px-4 py-2 text-sm text-gray-400 hover:text-white">Cancel</button>
+        <button onclick="saveLabel()" class="px-4 py-2 text-sm bg-accent text-white rounded-lg hover:bg-indigo-500">Save</button>
+      </div>
+    </div>
+  </div>
+  <div id="wallets-loading" class="flex justify-center py-12"><div class="spinner"></div></div>
+  <div id="wallets-table-wrap" class="hidden card overflow-auto">
+    <table class="w-full text-sm">
+      <thead><tr class="border-b border-gray-800">
+        <th class="px-4 py-3 text-left">Rank</th>
+        <th class="px-4 py-3 text-left">Wallet</th>
+        <th class="px-4 py-3 text-left">Chain</th>
+        <th class="px-4 py-3 text-right cursor-pointer hover:text-white" onclick="sortWallets('score')">Score ↕</th>
+        <th class="px-4 py-3 text-right cursor-pointer hover:text-white" onclick="sortWallets('pnl')">PnL ↕</th>
+        <th class="px-4 py-3 text-right">Win Rate</th>
+        <th class="px-4 py-3 text-right">Trades</th>
+        <th class="px-4 py-3 text-right">Last Active</th>
+        <th class="px-4 py-3 text-center">Actions</th>
+      </tr></thead>
+      <tbody id="wallets-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- STATS TAB -->
+<div id="tab-content-stats" class="hidden">
+  <div id="stats-loading" class="flex justify-center py-12"><div class="spinner"></div></div>
+  <div id="stats-content" class="hidden">
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div class="card p-4">
+        <div class="text-xs text-gray-500 mb-1">Total Wallets</div>
+        <div id="stat-wallets" class="text-2xl font-bold text-white">-</div>
+      </div>
+      <div class="card p-4">
+        <div class="text-xs text-gray-500 mb-1">Top 100 Wallets</div>
+        <div id="stat-top100" class="text-2xl font-bold text-white">-</div>
+      </div>
+      <div class="card p-4">
+        <div class="text-xs text-gray-500 mb-1">Signals (24h)</div>
+        <div id="stat-signals" class="text-2xl font-bold text-white">-</div>
+      </div>
+      <div class="card p-4">
+        <div class="text-xs text-gray-500 mb-1">Uptime</div>
+        <div id="stat-uptime" class="text-2xl font-bold text-white">-</div>
+      </div>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+      <div class="card p-4">
+        <div class="text-sm font-semibold text-white mb-3">API Usage</div>
+        <div class="grid grid-cols-2 gap-3 text-sm">
+          <div><div class="text-gray-500 text-xs">CU Used (1h)</div><div id="stat-cu1h" class="font-mono text-white">-</div></div>
+          <div><div class="text-gray-500 text-xs">CU Used (24h)</div><div id="stat-cu24h" class="font-mono text-white">-</div></div>
+          <div><div class="text-gray-500 text-xs">API Calls (24h)</div><div id="stat-calls" class="font-mono text-white">-</div></div>
+          <div><div class="text-gray-500 text-xs">Current Pressure</div><div id="stat-pressure" class="font-mono text-white">-</div></div>
+        </div>
+        <div class="mt-3">
+          <div class="text-xs text-gray-500 mb-1">CU Pressure</div>
+          <div class="score-bar"><div id="pressure-bar" class="score-fill bg-accent" style="width:0%"></div></div>
+        </div>
+      </div>
+      <div class="card p-4">
+        <div class="text-sm font-semibold text-white mb-3">Signals by Type (24h)</div>
+        <div id="signal-type-bars"></div>
+      </div>
+    </div>
+    <div class="card p-4">
+      <div class="flex items-center justify-between mb-3">
+        <div class="text-sm font-semibold text-white">Top API Endpoints (24h)</div>
+        <button onclick="loadStats()" class="text-xs text-gray-400 hover:text-white">↻</button>
+      </div>
+      <div id="api-usage-table"></div>
+    </div>
+  </div>
+</div>
+
+<!-- BACKTEST TAB -->
+<div id="tab-content-backtest" class="hidden">
+  <div class="flex items-center justify-between mb-4">
+    <div>
+      <h2 class="text-white font-semibold">Signal Backtest Validation</h2>
+      <p class="text-xs text-gray-500 mt-1">Win = price up ≥5% after signal. Runs on demand (uses Moralis CU).</p>
+    </div>
+    <div class="flex gap-2">
+      <select id="backtest-hours" class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white">
+        <option value="168">Last 7 days</option>
+        <option value="336">Last 14 days</option>
+        <option value="720">Last 30 days</option>
+      </select>
+      <button onclick="runBacktest(true)" class="text-sm bg-accent text-white rounded-lg px-4 py-1.5 hover:bg-indigo-500 flex items-center gap-2">
+        <span id="bt-spinner" class="hidden spinner" style="width:14px;height:14px;border-width:2px"></span>
+        Run Backtest
+      </button>
+    </div>
+  </div>
+  <div id="backtest-content">
+    <div class="card p-8 text-center text-gray-500">
+      <div class="text-4xl mb-3">🔬</div>
+      <div>Click "Run Backtest" to analyze signal performance</div>
+      <div class="text-xs mt-1">Requires past signals with sent_telegram=true</div>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<script>
+const API = '';
+let allWallets = [], walletSort = { key: 'score', dir: -1 };
+let refreshTimer;
+
+// ── Tab switching ──────────────────────────────────────────────────────
+function showTab(name) {
+  ['signals','wallets','stats','backtest'].forEach(t => {
+    document.getElementById(`tab-content-${t}`).classList.add('hidden');
+    const btn = document.getElementById(`tab-${t}`);
+    btn.classList.remove('active', 'text-white');
+    btn.classList.add('text-gray-400');
+  });
+  document.getElementById(`tab-content-${name}`).classList.remove('hidden');
+  const activeBtn = document.getElementById(`tab-${name}`);
+  activeBtn.classList.add('active');
+  activeBtn.classList.remove('text-gray-400');
+
+  if (name === 'signals') loadSignals();
+  else if (name === 'wallets') loadWallets();
+  else if (name === 'stats') loadStats();
+}
+
+// ── Signals ────────────────────────────────────────────────────────────
+async function loadSignals() {
+  const type = document.getElementById('filter-type').value;
+  const chain = document.getElementById('filter-chain').value;
+  const score = document.getElementById('filter-score').value;
+  
+  let url = `${API}/api/signals?limit=50`;
+  if (type) url += `&signal_type=${type}`;
+  if (chain) url += `&chain=${chain}`;
+  if (score > 0) url += `&min_score=${score}`;
+
+  document.getElementById('signals-loading').classList.remove('hidden');
+  document.getElementById('signals-grid').classList.add('hidden');
+
+  try {
+    const data = await fetch(url).then(r => r.json());
+    renderSignals(data);
+    document.getElementById('signals-count').textContent = `${data.length} signals`;
+  } catch(e) {
+    document.getElementById('signals-grid').innerHTML = `<div class="col-span-3 text-center text-gray-500 py-8">Failed to load signals</div>`;
+  }
+  document.getElementById('signals-loading').classList.add('hidden');
+  document.getElementById('signals-grid').classList.remove('hidden');
+}
+
+function renderSignals(signals) {
+  const grid = document.getElementById('signals-grid');
+  if (!signals.length) {
+    grid.innerHTML = '<div class="col-span-3 text-center text-gray-500 py-12 card p-8"><div class="text-4xl mb-3">📭</div><div>No signals yet. The system is scanning...</div></div>';
+    return;
+  }
+  grid.innerHTML = signals.map(s => {
+    const timeAgo = timeSince(s.triggered_at);
+    const confCls = s.confidence === 'HIGH' ? 'badge-high' : s.confidence === 'MEDIUM' ? 'badge-medium' : 'badge-low';
+    const scoreColor = s.score >= 80 ? '#22c55e' : s.score >= 60 ? '#f59e0b' : '#94a3b8';
+    const wallets = (s.wallets || []).slice(0,3).map(w => `<span class="font-mono text-xs text-gray-400">${w.slice(0,8)}...</span>`).join(' ');
+    return `
+    <div class="card signal-card p-4 type-${s.type}">
+      <div class="flex items-start justify-between mb-2">
+        <div>
+          <span class="text-xs font-semibold text-indigo-400">${s.type.replace(/_/g,' ')}</span>
+          ${s.token ? `<span class="ml-2 text-xs text-gray-400">$${s.token}</span>` : ''}
+          <span class="ml-2 text-xs text-gray-600 uppercase">${s.chain}</span>
+        </div>
+        <div class="text-right">
+          <div class="text-lg font-bold" style="color:${scoreColor}">${s.score.toFixed(0)}</div>
+          <div class="text-xs text-gray-600">/ 100</div>
+        </div>
+      </div>
+      <div class="score-bar mb-3"><div class="score-fill" style="width:${s.score}%;background:${scoreColor}"></div></div>
+      <p class="text-sm text-white mb-1 leading-snug">${s.summary}</p>
+      <p class="text-xs text-gray-500 mb-3 leading-relaxed">${s.evidence}</p>
+      <div class="flex items-center justify-between">
+        <div>${wallets}</div>
+        <div class="flex items-center gap-2">
+          <span class="badge ${confCls}">${s.confidence}</span>
+          <span class="text-xs text-gray-600">${timeAgo}</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Wallets ────────────────────────────────────────────────────────────
+async function loadWallets() {
+  const chain = document.getElementById('wallet-chain').value;
+  let url = `${API}/api/wallets?limit=200`;
+  if (chain) url += `&chain=${chain}`;
+
+  document.getElementById('wallets-loading').classList.remove('hidden');
+  document.getElementById('wallets-table-wrap').classList.add('hidden');
+
+  try {
+    allWallets = await fetch(url).then(r => r.json());
+    renderWallets(allWallets);
+  } catch(e) {}
+  document.getElementById('wallets-loading').classList.add('hidden');
+  document.getElementById('wallets-table-wrap').classList.remove('hidden');
+}
+
+function filterWallets() {
+  const q = document.getElementById('wallet-search').value.toLowerCase();
+  if (!q) return renderWallets(allWallets);
+  renderWallets(allWallets.filter(w => w.address.includes(q) || (w.label||'').toLowerCase().includes(q)));
+}
+
+function sortWallets(key) {
+  if (walletSort.key === key) walletSort.dir *= -1;
+  else { walletSort.key = key; walletSort.dir = -1; }
+  const sorted = [...allWallets].sort((a,b) => {
+    const va = key==='score' ? a.score : (a.metrics?.realized_pnl_usd||0);
+    const vb = key==='score' ? b.score : (b.metrics?.realized_pnl_usd||0);
+    return (va - vb) * walletSort.dir;
+  });
+  renderWallets(sorted);
+}
+
+function renderWallets(wallets) {
+  const tbody = document.getElementById('wallets-tbody');
+  tbody.innerHTML = wallets.map((w, i) => {
+    const m = w.metrics || {};
+    const scoreColor = w.score >= 80 ? '#22c55e' : w.score >= 60 ? '#f59e0b' : '#94a3b8';
+    const pnl = m.realized_pnl_usd || 0;
+    const pnlColor = pnl >= 0 ? '#22c55e' : '#ef4444';
+    const wr = m.win_rate ? (m.win_rate*100).toFixed(0)+'%' : '-';
+    const lastActive = m.last_trade_at ? timeSince(m.last_trade_at) : '-';
+    const display = w.label ? `<span class="font-medium text-white">${w.label}</span><br><span class="font-mono text-xs text-gray-500">${w.address.slice(0,10)}...</span>` 
+                           : `<span class="font-mono text-sm text-gray-300">${w.address.slice(0,12)}...</span>`;
+    const tags = (w.tags||[]).map(t=>`<span class="badge badge-low ml-1">${t}</span>`).join('');
+    return `<tr class="border-b border-gray-800">
+      <td class="px-4 py-3 text-gray-500 text-center">${w.rank||i+1}</td>
+      <td class="px-4 py-3">${display}${tags}</td>
+      <td class="px-4 py-3"><span class="badge badge-low">${w.chain}</span></td>
+      <td class="px-4 py-3 text-right font-bold" style="color:${scoreColor}">${w.score.toFixed(1)}</td>
+      <td class="px-4 py-3 text-right font-mono text-sm" style="color:${pnlColor}">${fmtUSD(pnl)}</td>
+      <td class="px-4 py-3 text-right text-gray-300">${wr}</td>
+      <td class="px-4 py-3 text-right text-gray-400">${m.trade_count||0}</td>
+      <td class="px-4 py-3 text-right text-gray-500 text-xs">${lastActive}</td>
+      <td class="px-4 py-3 text-center">
+        <button onclick="openModal('${w.address}','${w.chain}','${(w.label||'').replace(/'/g,"\\'")}','${(w.tags||[]).join(',')}')" 
+                class="text-xs text-indigo-400 hover:text-indigo-300">✏ Label</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Label modal ──────────────────────────────────────────────────────
+function openModal(address, chain, label, tags) {
+  document.getElementById('modal-address').value = address;
+  document.getElementById('modal-chain').value = chain;
+  document.getElementById('modal-label').value = label;
+  document.getElementById('modal-tags').value = tags;
+  document.getElementById('label-modal').classList.remove('hidden');
+}
+function closeModal() { document.getElementById('label-modal').classList.add('hidden'); }
+
+async function saveLabel() {
+  const addr = document.getElementById('modal-address').value;
+  const chain = document.getElementById('modal-chain').value;
+  const label = document.getElementById('modal-label').value;
+  const tags = document.getElementById('modal-tags').value.split(',').map(t=>t.trim()).filter(Boolean);
+  await fetch(`${API}/api/wallets/${addr}/label`, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({chain, label, tags})
+  });
+  closeModal();
+  loadWallets();
+}
+
+// ── Stats ──────────────────────────────────────────────────────────────
+async function loadStats() {
+  document.getElementById('stats-loading').classList.remove('hidden');
+  document.getElementById('stats-content').classList.add('hidden');
+  try {
+    const [stats, usage] = await Promise.all([
+      fetch(`${API}/api/stats`).then(r=>r.json()),
+      fetch(`${API}/api/stats/api-usage`).then(r=>r.json()),
+    ]);
+    document.getElementById('stat-wallets').textContent = stats.wallets?.total || 0;
+    document.getElementById('stat-top100').textContent = stats.wallets?.top100 || 0;
+    document.getElementById('stat-signals').textContent = stats.signals?.last_24h || 0;
+    document.getElementById('stat-uptime').textContent = stats.uptime_human || '-';
+    document.getElementById('stat-cu1h').textContent = (stats.api?.cu_used_1h||0).toLocaleString();
+    document.getElementById('stat-cu24h').textContent = (stats.api?.cu_used_24h||0).toLocaleString();
+    document.getElementById('stat-calls').textContent = (stats.api?.calls_24h||0).toLocaleString();
+    const pressure = stats.api?.cu_pressure_pct || 0;
+    document.getElementById('stat-pressure').textContent = pressure.toFixed(1) + '%';
+    document.getElementById('pressure-bar').style.width = Math.min(pressure, 100) + '%';
+    document.getElementById('pressure-bar').style.background = pressure > 80 ? '#ef4444' : pressure > 50 ? '#f59e0b' : '#6366f1';
+
+    // Signal type bars
+    const byType = stats.signals?.by_type_24h || {};
+    const maxVal = Math.max(...Object.values(byType), 1);
+    document.getElementById('signal-type-bars').innerHTML = Object.entries(byType).map(([type, cnt]) => `
+      <div class="flex items-center gap-2 mb-1.5">
+        <div class="text-xs text-gray-400 w-40 truncate">${type.replace(/_/g,' ')}</div>
+        <div class="flex-1 bg-gray-800 rounded h-3">
+          <div class="h-3 rounded bg-accent" style="width:${(cnt/maxVal*100).toFixed(0)}%"></div>
+        </div>
+        <div class="text-xs text-gray-400 w-6 text-right">${cnt}</div>
+      </div>`).join('') || '<div class="text-gray-500 text-sm">No signals in 24h</div>';
+
+    // API usage table
+    document.getElementById('api-usage-table').innerHTML = `<table class="w-full text-xs">
+      <thead><tr class="border-b border-gray-800"><th class="text-left py-1 text-gray-500">Endpoint</th><th class="text-right py-1 text-gray-500">Calls</th><th class="text-right py-1 text-gray-500">CU</th></tr></thead>
+      <tbody>${usage.map(r=>`<tr class="border-b border-gray-900"><td class="py-1 font-mono text-gray-400 truncate max-w-xs">${r.endpoint}</td><td class="py-1 text-right text-gray-300">${r.calls}</td><td class="py-1 text-right text-gray-300">${r.total_cu}</td></tr>`).join('')}</tbody>
+    </table>`;
+
+    document.getElementById('stats-loading').classList.add('hidden');
+    document.getElementById('stats-content').classList.remove('hidden');
+  } catch(e) { document.getElementById('stats-loading').classList.add('hidden'); }
+}
+
+// ── Backtest ──────────────────────────────────────────────────────────
+async function runBacktest(refresh=false) {
+  const hours = document.getElementById('backtest-hours').value;
+  document.getElementById('bt-spinner').classList.remove('hidden');
+  try {
+    const url = `${API}/api/backtest?hours_back=${hours}&refresh=${refresh}`;
+    const data = await fetch(url).then(r=>r.json());
+    renderBacktest(data);
+  } catch(e) {}
+  document.getElementById('bt-spinner').classList.add('hidden');
+}
+
+function renderBacktest(data) {
+  const el = document.getElementById('backtest-content');
+  if (!data || !data.by_type) {
+    el.innerHTML = '<div class="card p-8 text-center text-gray-500">No backtest data available. Need signals with price history.</div>';
+    return;
+  }
+  const wr = (data.overall_win_rate_24h * 100).toFixed(1);
+  el.innerHTML = `
+    <div class="grid grid-cols-3 gap-4 mb-4">
+      <div class="card p-4 text-center"><div class="text-xs text-gray-500 mb-1">Signals Evaluated</div><div class="text-2xl font-bold text-white">${data.signals_evaluated}</div></div>
+      <div class="card p-4 text-center"><div class="text-xs text-gray-500 mb-1">Overall 24h Win Rate</div><div class="text-2xl font-bold ${parseFloat(wr)>=50?'text-green-400':'text-red-400'}">${wr}%</div></div>
+      <div class="card p-4 text-center"><div class="text-xs text-gray-500 mb-1">Best Signal Type</div><div class="text-base font-bold text-indigo-400">${(data.best_signal_type||'-').replace(/_/g,' ')}</div></div>
+    </div>
+    <div class="card overflow-auto">
+      <table class="w-full text-sm">
+        <thead><tr class="border-b border-gray-800">
+          <th class="px-4 py-3 text-left">Signal Type</th>
+          <th class="px-4 py-3 text-right">Total</th>
+          <th class="px-4 py-3 text-right">Win Rate 4h</th>
+          <th class="px-4 py-3 text-right">Win Rate 24h</th>
+          <th class="px-4 py-3 text-right">Win Rate 72h</th>
+          <th class="px-4 py-3 text-right">Avg Gain 4h</th>
+          <th class="px-4 py-3 text-right">Avg Gain 24h</th>
+        </tr></thead>
+        <tbody>${(data.by_type||[]).map(r => {
+          const wr24 = (r.win_rate_24h*100).toFixed(0);
+          const color = r.win_rate_24h >= 0.6 ? '#22c55e' : r.win_rate_24h >= 0.4 ? '#f59e0b' : '#ef4444';
+          return `<tr class="border-b border-gray-800">
+            <td class="px-4 py-3 font-medium text-white">${r.signal_type.replace(/_/g,' ')}</td>
+            <td class="px-4 py-3 text-right text-gray-400">${r.total}</td>
+            <td class="px-4 py-3 text-right">${(r.win_rate_4h*100).toFixed(0)}%</td>
+            <td class="px-4 py-3 text-right font-bold" style="color:${color}">${wr24}%</td>
+            <td class="px-4 py-3 text-right">${(r.win_rate_72h*100).toFixed(0)}%</td>
+            <td class="px-4 py-3 text-right ${r.avg_gain_pct_4h>=0?'text-green-400':'text-red-400'}">${r.avg_gain_pct_4h>=0?'+':''}${r.avg_gain_pct_4h.toFixed(1)}%</td>
+            <td class="px-4 py-3 text-right ${r.avg_gain_pct_24h>=0?'text-green-400':'text-red-400'}">${r.avg_gain_pct_24h>=0?'+':''}${r.avg_gain_pct_24h.toFixed(1)}%</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>
+    </div>
+    <div class="mt-3 text-xs text-gray-600">Generated: ${new Date(data.generated_at).toLocaleString()}</div>`;
+}
+
+// ── Status bar ─────────────────────────────────────────────────────────
+async function updateStatusBar() {
+  try {
+    const s = await fetch(`${API}/api/stats`).then(r=>r.json());
+    document.getElementById('status-bar').innerHTML = `
+      <div class="flex items-center gap-1"><div class="w-2 h-2 rounded-full bg-green-500"></div><span class="text-xs text-gray-400">Online</span></div>
+      <span class="text-xs text-gray-600">|</span>
+      <span class="text-xs text-gray-400">${s.wallets?.top100||0} wallets</span>
+      <span class="text-xs text-gray-600">|</span>
+      <span class="text-xs text-gray-400">${s.signals?.last_24h||0} signals/24h</span>
+      <span class="text-xs text-gray-600">|</span>
+      <span class="text-xs text-gray-400">CU ${s.api?.cu_pressure_pct||0}%</span>`;
+  } catch(e) {
+    document.getElementById('status-bar').innerHTML = '<div class="flex items-center gap-1"><div class="w-2 h-2 rounded-full bg-red-500"></div><span class="text-xs text-gray-400">Offline</span></div>';
+  }
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────
+function timeSince(isoStr) {
+  const d = new Date(isoStr);
+  const s = Math.floor((Date.now() - d)/1000);
+  if (s < 60) return s+'s ago';
+  if (s < 3600) return Math.floor(s/60)+'m ago';
+  if (s < 86400) return Math.floor(s/3600)+'h ago';
+  return Math.floor(s/86400)+'d ago';
+}
+
+function fmtUSD(n) {
+  if (Math.abs(n) >= 1e6) return (n/1e6).toFixed(2)+'M';
+  if (Math.abs(n) >= 1e3) return (n/1e3).toFixed(1)+'k';
+  return n.toFixed(0);
+}
+
+// ── Init ────────────────────────────────────────────────────────────────
+(async () => {
+  await updateStatusBar();
+  await loadSignals();
+  setInterval(loadSignals, 30000);
+  setInterval(updateStatusBar, 15000);
+})();
+</script>
+</body>
+</html>

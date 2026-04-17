@@ -1,0 +1,15 @@
+# Secrets and local config (never commit)
+.env
+smart_money/.env
+Moralis API.txt
+Telegram API.txt
+TELEGRAM_CHAT_ID.txt
+
+# Runtime / cache
+smart_money/logs/
+*.log
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
