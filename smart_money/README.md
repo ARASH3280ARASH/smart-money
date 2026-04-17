@@ -1,5 +1,9 @@
 # Smart Money Analytics System
 
+**Full documentation** (quick start, environment reference, HTTP API table, security, and how to pin the repo on your GitHub profile) lives in the repository root: [`README.md`](../README.md).
+
+---
+
 A production-grade multi-chain smart money analytics system that continuously scans blockchain activity, identifies profitable wallets, detects coordinated behavior, and delivers trade-ready signals via Telegram.
 
 ---
